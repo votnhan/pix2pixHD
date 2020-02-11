@@ -48,7 +48,8 @@ class BaseOptions():
         self.parser.add_argument('--n_blocks_global', type=int, default=9, help='number of residual blocks in the global generator network')
         self.parser.add_argument('--n_blocks_local', type=int, default=3, help='number of residual blocks in the local enhancer network')
         self.parser.add_argument('--n_local_enhancers', type=int, default=1, help='number of local enhancers to use')        
-        self.parser.add_argument('--niter_fix_global', type=int, default=0, help='number of epochs that we only train the outmost local enhancer')        
+        self.parser.add_argument('--niter_fix_global', type=int, default=0, help='number of epochs that we only train the outmost local enhancer')
+        self.parser.add_argument('--last_activation', type=str, default='tanh', help='last actionvation for output of generator, support: relu | tanh')        
 
         # for instance-wise features
         self.parser.add_argument('--no_instance', action='store_true', help='if specified, do *not* add instance map as input')        

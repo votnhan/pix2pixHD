@@ -43,10 +43,12 @@ class Pix2PixHDModel(BaseModel):
         if not opt.no_instance:
             netG_input_nc += 1
         if self.use_features:
-            netG_input_nc += opt.feat_num                  
+            netG_input_nc += opt.feat_num  
+              
         self.netG = networks.define_G(netG_input_nc, opt.output_nc, opt.ngf, opt.netG, 
                                       opt.n_downsample_global, opt.n_blocks_global, opt.n_local_enhancers, 
-                                      opt.n_blocks_local, opt.norm, gpu_ids=self.gpu_ids)        
+                                      opt.n_blocks_local, opt.norm, gpu_ids=self.gpu_ids, 
+                                      last_activation=opt.last_activation)        
 
         # Discriminator network
         if self.isTrain:

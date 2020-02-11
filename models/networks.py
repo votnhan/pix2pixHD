@@ -44,10 +44,14 @@ def gradient_penalty(critic, fake_images, real_images):
     return result
 
 def define_G(input_nc, output_nc, ngf, netG, n_downsample_global=3, n_blocks_global=9, n_local_enhancers=1, 
-             n_blocks_local=3, norm='instance', gpu_ids=[]):    
+             n_blocks_local=3, norm='instance', gpu_ids=[], last_activation='tanh'):    
     norm_layer = get_norm_layer(norm_type=norm)     
-    if netG == 'global':    
-        netG = GlobalGenerator(input_nc, output_nc, ngf, n_downsample_global, n_blocks_global, norm_layer)       
+    if netG == 'global':
+        last_act = nn.Tanh()
+        if last_activation=='relu':
+            last_act = nn.ReLU(True)
+        netG = GlobalGenerator(input_nc, output_nc, ngf, n_downsample_global, n_blocks_global, 
+                                norm_layer, last_activation=last_act)       
     elif netG == 'local':        
         netG = LocalEnhancer(input_nc, output_nc, ngf, n_downsample_global, n_blocks_global, 
                                   n_local_enhancers, n_blocks_local, norm_layer)
@@ -209,7 +213,7 @@ class LocalEnhancer(nn.Module):
 
 class GlobalGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, ngf=64, n_downsampling=3, n_blocks=9, norm_layer=nn.BatchNorm2d, 
-                 padding_type='reflect'):
+                 padding_type='reflect', last_activation=nn.Tanh()):
         assert(n_blocks >= 0)
         super(GlobalGenerator, self).__init__()        
         activation = nn.ReLU(True)        
@@ -231,7 +235,7 @@ class GlobalGenerator(nn.Module):
             mult = 2**(n_downsampling - i)
             model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2), kernel_size=3, stride=2, padding=1, output_padding=1),
                        norm_layer(int(ngf * mult / 2)), activation]
-        model += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0), nn.Tanh()]        
+        model += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0), last_activation]        
         self.model = nn.Sequential(*model)
             
     def forward(self, input):

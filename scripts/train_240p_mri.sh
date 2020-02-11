@@ -1,0 +1,1 @@
+python train.py --name tumor2braintumor_240p --netG global --last_activation relu --label_nc 5 --ngf 32 --n_blocks_global 9 --output_nc 4 --num_D 4 --resize_or_crop none
