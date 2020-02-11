@@ -205,8 +205,9 @@ class Pix2PixHDModel(BaseModel):
         # Gradient penalty loss
         loss_gp = 0
         if self.opt.gan_type == 'wgan-gp':
-            from networks import gradient_penalty
-            loss_gp = gradient_penalty(self.netD, fake_image, real_image)
+            lbl_fake_imgs = torch.cat((input_label, fake_image), dim=1)
+            lbl_real_imgs = torch.cat((input_label, real_image), dim=1)
+            loss_gp = networks.gradient_penalty(self.netD, lbl_fake_imgs, lbl_real_imgs)
         
         # Only return the fake_B image if necessary to save BW
         return [ self.loss_filter( loss_G_GAN, loss_G_GAN_Feat, loss_G_VGG, loss_D_real, loss_D_fake, loss_gp), None if not infer else fake_image ]

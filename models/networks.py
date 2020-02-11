@@ -131,9 +131,9 @@ class GANLoss(nn.Module):
             return self.loss(input[-1], target_tensor)
 
     def wgan_loss(self, pred, target):
-        return pred*target
-
-
+        num_dims = len(pred.size())
+        dims = tuple(range(1, num_dims))
+        return (pred*target).mean(dims)
 
 class VGGLoss(nn.Module):
     def __init__(self, gpu_ids):
