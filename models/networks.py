@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import functools
-from torch.autograd import Variable
+from torch.autograd import Variable, grad
 import numpy as np
 
 ###############################################################################
@@ -23,6 +23,25 @@ def get_norm_layer(norm_type='instance'):
     else:
         raise NotImplementedError('normalization layer [%s] is not found' % norm_type)
     return norm_layer
+
+def gradient_penalty(critic, fake_images, real_images):
+    bz = real_images.size()[0]
+    alpha = torch.rand(bz, 1, 1, 1)
+    alpha = alpha.expand_as(real_images).cuda()
+    interpolated = alpha * real_images.data + (1 - alpha) * fake_images.data
+    interpolated = Variable(interpolated, requires_grad=True)
+    interpolated = interpolated.cuda()
+    output_md = critic(interpolated)
+    last_layer = [x[-1] for x in output_md]
+    result = torch.zeros(bz).cuda()
+    for output in last_layer:
+        gradients = grad(outputs=output, inputs=interpolated, grad_outputs=torch.ones(output.size()).cuda(),
+                            create_graph=True, retain_graph=True)[0]
+        gradients = gradients.view(bz, -1)
+        gradients_norm = torch.sqrt(torch.sum(gradients ** 2, dim=1) + 1e-12)
+        result += (gradients_norm - 1) ** 2
+        
+    return result
 
 def define_G(input_nc, output_nc, ngf, netG, n_downsample_global=3, n_blocks_global=9, n_local_enhancers=1, 
              n_blocks_local=3, norm='instance', gpu_ids=[]):    
@@ -66,7 +85,7 @@ def print_network(net):
 # Losses
 ##############################################################################
 class GANLoss(nn.Module):
-    def __init__(self, use_lsgan=True, target_real_label=1.0, target_fake_label=0.0,
+    def __init__(self, gan_type='lsgan', target_real_label=1.0, target_fake_label=0.0,
                  tensor=torch.FloatTensor):
         super(GANLoss, self).__init__()
         self.real_label = target_real_label
@@ -74,8 +93,10 @@ class GANLoss(nn.Module):
         self.real_label_var = None
         self.fake_label_var = None
         self.Tensor = tensor
-        if use_lsgan:
+        if gan_type == 'lsgan':
             self.loss = nn.MSELoss()
+        elif gan_type == 'wgan-gp':
+            self.loss = self.wgan_loss
         else:
             self.loss = nn.BCELoss()
 
@@ -108,6 +129,10 @@ class GANLoss(nn.Module):
         else:            
             target_tensor = self.get_target_tensor(input[-1], target_is_real)
             return self.loss(input[-1], target_tensor)
+
+    def wgan_loss(self, pred, target):
+        return pred*target
+
 
 
 class VGGLoss(nn.Module):
