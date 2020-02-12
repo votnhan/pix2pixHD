@@ -40,13 +40,14 @@ class MRI_Dataset(BaseDataset):
         A_path = self.A_paths[index]              
         A = Image.open(A_path)
         self.get_params(A.size)
-        tf_A_list = self.get_transform_label(self.opt, method=Image.NEAREST, **self.params)
+        tf_A_list = get_transform_label(self.opt, method=Image.NEAREST, **self.params)
         tf_A = transforms.Compose(tf_A_list)
         A_tensor = tf_A(A)
 
+        B_tensor = inst_tensor = feat_tensor = 0
         B_path = self.B_paths[index]
         B = Image.open(B_path)
-        tf_B_list = self.get_transform_image(tf_A_list, self.opt, normalize=True, **self.params)
+        tf_B_list = get_transform_image(tf_A_list, self.opt, normalize=True, **self.params)
         B_tensor = transforms.Compose(tf_B_list)(B)
 
         if not self.opt.no_instance:
@@ -55,7 +56,7 @@ class MRI_Dataset(BaseDataset):
             inst_tensor = tf_A(inst)
 
         input_dict = {'label': A_tensor, 'inst': inst_tensor, 'image': B_tensor, 
-                      'feat': None, 'path': A_path}
+                      'feat': feat_tensor, 'path': A_path}
 
         return input_dict
 
@@ -63,42 +64,42 @@ class MRI_Dataset(BaseDataset):
         crop_flip = get_params(self.opt, size)
         self.params.update(crop_flip)    
 
-    def get_transform_label(self, opt, method=Image.BICUBIC, **params):
-        transform_list = []
-        if 'resize' in opt.resize_or_crop:
-            osize = [opt.loadSize, opt.loadSize]
-            transform_list.append(transforms.Scale(osize, method))
-        elif 'scale_width' in opt.resize_or_crop:
-            transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.loadSize, method)))
-        
-        if 'crop' in opt.resize_or_crop:
-            transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.fineSize)))
-        
-        if opt.resize_or_crop == 'none':
-            base = float(2 ** opt.n_downsample_global)
-            if opt.netG == 'local':
-                base *= (2 ** opt.n_local_enhancers)
-            transform_list.append(transforms.Lambda(lambda img: __make_power_2(img, base, method)))
-
-        if opt.isTrain and not opt.no_flip:
-            transform_list.append(transforms.Lambda(lambda img: __flip(img, params['flip'])))
-
-        transform_list.append(transforms.Lambda(lambda img: __toTensor(img)))
-        return transform_list
-
-    def get_transform_image(self, tf_list_label, opt, normalize=True, **params):
-        transform_list = tf_list_label
-        if normalize:
-            transform_list.append(transforms.Lambda(lambda tensor: 
-                                    __normalize(tensor, params['means'], params['stds'])))
-        
-        return transform_list
-    
     def __len__(self):
         return len(self.A_paths) // self.opt.batchSize * self.opt.batchSize
 
     def name(self):
         return 'MRI Dataset'
+
+def get_transform_label(opt, method=Image.BICUBIC, **params):
+    transform_list = []
+    if 'resize' in opt.resize_or_crop:
+        osize = [opt.loadSize, opt.loadSize]
+        transform_list.append(transforms.Scale(osize, method))
+    elif 'scale_width' in opt.resize_or_crop:
+        transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.loadSize, method)))
+    
+    if 'crop' in opt.resize_or_crop:
+        transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.fineSize)))
+    
+    if opt.resize_or_crop == 'none':
+        base = float(2 ** opt.n_downsample_global)
+        if opt.netG == 'local':
+            base *= (2 ** opt.n_local_enhancers)
+        transform_list.append(transforms.Lambda(lambda img: __make_power_2(img, base, method)))
+
+    if opt.isTrain and not opt.no_flip:
+        transform_list.append(transforms.Lambda(lambda img: __flip(img, params['flip'])))
+
+    transform_list.append(transforms.Lambda(lambda img: __toTensor(img)))
+    return transform_list
+
+def get_transform_image(tf_list_label, opt, normalize=True, **params):
+    transform_list = tf_list_label
+    if normalize:
+        transform_list.append(transforms.Lambda(lambda tensor: 
+                                __normalize(tensor, params['means'], params['stds'])))
+    
+    return transform_list
 
 def __toTensor(image):
     arr = np.asarray(image, dtype=np.float32)
@@ -115,5 +116,8 @@ def __normalize(tensor, means, stds):
 def get_statistics(statistical_file):
     with open(statistical_file, 'r') as sts_file:
         statistics = json.load(sts_file)
+    
+    for k, v in statistics.items():
+        statistics[k] = eval(v)
 
     return statistics
