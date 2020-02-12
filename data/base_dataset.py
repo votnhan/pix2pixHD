@@ -53,8 +53,13 @@ def get_transform(opt, params, method=Image.BICUBIC, normalize=True):
     transform_list += [transforms.ToTensor()]
 
     if normalize:
-        transform_list += [transforms.Normalize((0.5, 0.5, 0.5),
-                                                (0.5, 0.5, 0.5))]
+        tp_means = (0.5, 0.5, 0.5)
+        tp_stds = (0.5, 0.5, 0.5)
+        if opt.input_nc == 1:
+            tp_means = (0.5,)
+            tp_stds = (0.5,)
+        
+        transform_list += [transforms.Normalize(tp_means, tp_stds)]
     return transforms.Compose(transform_list)
 
 def normalize():    

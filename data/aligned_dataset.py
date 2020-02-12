@@ -47,8 +47,10 @@ class AlignedDataset(BaseDataset):
         B_tensor = inst_tensor = feat_tensor = 0
         ### input B (real images)
         if self.opt.isTrain or self.opt.use_encoded_image:
-            B_path = self.B_paths[index]   
-            B = Image.open(B_path).convert('RGB')
+            B_path = self.B_paths[index]
+            B = Image.open(B_path)
+            if self.opt.input_nc == 3:
+                B = B.convert('RGB')
             transform_B = get_transform(self.opt, params)      
             B_tensor = transform_B(B)
 
