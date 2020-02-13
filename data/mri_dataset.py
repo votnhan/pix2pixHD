@@ -103,7 +103,7 @@ def get_transform_image(tf_list_label, opt, normalize=True, **params):
 
 def __toTensor(image):
     arr = np.asarray(image, dtype=np.float32)
-    ts = torch.from_numpy(arr)
+    ts = torch.from_numpy(np.expand_dims(arr, 0))
     return ts
 
 def __normalize(tensor, means, stds):

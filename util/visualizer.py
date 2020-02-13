@@ -17,6 +17,7 @@ class Visualizer():
         self.use_html = opt.isTrain and not opt.no_html
         self.win_size = opt.display_winsize
         self.name = opt.name
+        self.image_ext = opt.image_ext
         if self.tf_log:
             import tensorflow as tf
             self.tf = tf
@@ -57,10 +58,10 @@ class Visualizer():
             for label, image_numpy in visuals.items():
                 if isinstance(image_numpy, list):
                     for i in range(len(image_numpy)):
-                        img_path = os.path.join(self.img_dir, 'epoch%.3d_%s_%d.jpg' % (epoch, label, i))
+                        img_path = os.path.join(self.img_dir, 'epoch%.3d_%s_%d.%s' % (epoch, label, i, self.image_ext))
                         util.save_image(image_numpy[i], img_path)
                 else:
-                    img_path = os.path.join(self.img_dir, 'epoch%.3d_%s.jpg' % (epoch, label))
+                    img_path = os.path.join(self.img_dir, 'epoch%.3d_%s.%s' % (epoch, label, self.image_ext))
                     util.save_image(image_numpy, img_path)
 
             # update website
@@ -74,12 +75,12 @@ class Visualizer():
                 for label, image_numpy in visuals.items():
                     if isinstance(image_numpy, list):
                         for i in range(len(image_numpy)):
-                            img_path = 'epoch%.3d_%s_%d.jpg' % (n, label, i)
+                            img_path = 'epoch%.3d_%s_%d.%s' % (n, label, i, self.image_ext)
                             ims.append(img_path)
                             txts.append(label+str(i))
                             links.append(img_path)
                     else:
-                        img_path = 'epoch%.3d_%s.jpg' % (n, label)
+                        img_path = 'epoch%.3d_%s.%s' % (n, label, self.image_ext)
                         ims.append(img_path)
                         txts.append(label)
                         links.append(img_path)
@@ -121,7 +122,7 @@ class Visualizer():
         links = []
 
         for label, image_numpy in visuals.items():
-            image_name = '%s_%s.jpg' % (name, label)
+            image_name = '%s_%s.%s' % (name, label, self.image_ext)
             save_path = os.path.join(image_dir, image_name)
             util.save_image(image_numpy, save_path)
 
