@@ -95,6 +95,8 @@ def get_transform_label(opt, method=Image.BICUBIC, **params):
 
 def get_transform_image(tf_list_label, opt, normalize=True, **params):
     transform_list = tf_list_label
+    transform_list.append(transforms.Lambda(lambda tensor: 
+                                __scale_01_Tensor(tensor, params['min_vox'], params['max_vox'])))
     if normalize:
         transform_list.append(transforms.Lambda(lambda tensor: 
                                 __normalize(tensor, params['means'], params['stds'])))
@@ -105,6 +107,13 @@ def __toTensor(image):
     arr = np.asarray(image, dtype=np.float32)
     ts = torch.from_numpy(np.expand_dims(arr, 0))
     return ts
+
+def __scale_01_Tensor(tensor, min_voxel, max_voxel):
+    dtype = tensor.dtype
+    min_ts = torch.as_tensor(min_voxel, dtype=dtype, device=tensor.device)
+    max_ts = torch.as_tensor(max_voxel, dtype=dtype, device=tensor.device)
+    tensor.div_(max_ts - min_ts)
+    return tensor
 
 def __normalize(tensor, means, stds):
     dtype = tensor.dtype
