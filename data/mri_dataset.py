@@ -13,24 +13,28 @@ class MRI_Dataset(BaseDataset):
         self.root = opt.dataroot
         self.statistical_file = 'statistics.json'
         self.params = {}
-                
+        self.tp_params = ['means', 'stds']
+        self.get_data_folder_name(self.root, opt.config_data)
+
         ### input A (label maps)
-        dir_A = '_A' if self.opt.label_nc == 0 else '_label'
+        dir_A = '_A' if self.opt.label_nc == 0 else self.config_data['label_folder']
         self.dir_A = os.path.join(opt.dataroot, opt.phase + dir_A)
         self.A_paths = sorted(make_dataset(self.dir_A))
 
         ### input B (real images)
         if opt.isTrain or opt.use_encoded_image:
-            dir_B = '_B' if self.opt.label_nc == 0 else '_img'
+            dir_B = '_B' if self.opt.label_nc == 0 else self.config_data['image_folder']
             self.dir_B = os.path.join(opt.dataroot, opt.phase + dir_B)
             self.B_paths = sorted(make_dataset(self.dir_B))
-            statistics = get_statistics(os.path.join(self.dir_B, self.statistical_file))
+            statistics = get_statistics(os.path.join(self.dir_B, self.statistical_file), 
+                                        self.tp_params)
             self.params.update(statistics)
             opt.statistics = statistics
 
         ### instance maps
         if not opt.no_instance:
-            self.dir_inst = os.path.join(opt.dataroot, opt.phase + '_inst')
+            self.dir_inst = os.path.join(opt.dataroot, 
+                            opt.phase + self.config_data['instance_folder'])
             self.inst_paths = sorted(make_dataset(self.dir_inst))
 
         self.dataset_size = len(self.A_paths)
@@ -69,6 +73,13 @@ class MRI_Dataset(BaseDataset):
 
     def name(self):
         return 'MRI Dataset'
+
+    def get_data_folder_name(self, root_fd, config_data_name):
+        data_fd = os.path.split(root_fd)
+        path_cfg_data = os.path.join(data_fd, config_data_name)
+        with open(path_cfg_data, 'r') as cfg_data_file:
+            config_data = json.load(cfg_data_file)
+        self.config_data = config_data
 
 def get_transform_label(opt, method=Image.BICUBIC, **params):
     transform_list = []
@@ -122,11 +133,12 @@ def __normalize(tensor, means, stds):
     tensor.sub_(mean).div_(std)
     return tensor
 
-def get_statistics(statistical_file):
+def get_statistics(statistical_file, tuple_params):
     with open(statistical_file, 'r') as sts_file:
         statistics = json.load(sts_file)
     
     for k, v in statistics.items():
-        statistics[k] = eval(v)
+        if k in tuple_params:
+            statistics[k] = eval(v)
 
     return statistics
