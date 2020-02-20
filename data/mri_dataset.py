@@ -51,7 +51,7 @@ class MRI_Dataset(BaseDataset):
         B_tensor = inst_tensor = feat_tensor = 0
         B_path = self.B_paths[index]
         B = Image.open(B_path)
-        tf_B_list = get_transform_image(tf_A_list, self.opt, normalize=True, **self.params)
+        tf_B_list = get_transform_image(tf_A_list, self.opt, normalize=False, **self.params)
         B_tensor = transforms.Compose(tf_B_list)(B)
 
         if not self.opt.no_instance:
@@ -75,7 +75,7 @@ class MRI_Dataset(BaseDataset):
         return 'MRI Dataset'
 
     def get_data_folder_name(self, root_fd, config_data_name):
-        data_fd = os.path.split(root_fd)
+        data_fd = os.path.split(root_fd)[-2]
         path_cfg_data = os.path.join(data_fd, config_data_name)
         with open(path_cfg_data, 'r') as cfg_data_file:
             config_data = json.load(cfg_data_file)
@@ -106,8 +106,9 @@ def get_transform_label(opt, method=Image.BICUBIC, **params):
 
 def get_transform_image(tf_list_label, opt, normalize=True, **params):
     transform_list = tf_list_label
-    transform_list.append(transforms.Lambda(lambda tensor: 
-                                __scale_01_Tensor(tensor, params['min_vox'], params['max_vox'])))
+    # transform_list.append(transforms.Lambda(lambda tensor: 
+    #                             __scale_01_Tensor(tensor, params['min_vox'], params['max_vox'])))
+    transform_list.append(transforms.Lambda(lambda tensor: __scale_mean_tensor(tensor,)))
     if normalize:
         transform_list.append(transforms.Lambda(lambda tensor: 
                                 __normalize(tensor, params['means'], params['stds'])))
@@ -125,6 +126,17 @@ def __scale_01_Tensor(tensor, min_voxel, max_voxel):
     max_ts = torch.as_tensor(max_voxel, dtype=dtype, device=tensor.device)
     tensor.div_(max_ts - min_ts)
     return tensor
+
+def __scale_mean_tensor(tensor):
+    mean_ts = torch.mean(tensor)
+    tensor.div_(mean_ts)
+    return tensor
+
+def __scale_min_max_tensor(tensor):
+    min_ts = torch.min(tensor)
+    max_ts = torch.max(tensor)
+    diff = max_ts - min_ts
+    return tensor.div_(diff)
 
 def __normalize(tensor, means, stds):
     dtype = tensor.dtype

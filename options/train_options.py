@@ -32,4 +32,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--lambda_gp', type=float, default=10, help='lambda to control gradient penalty of wgan')
         self.parser.add_argument('--pool_size', type=int, default=0, help='the size of image buffer that stores previously generated images')
 
+        # for generators
+        self.parser.add_argument('--lambda_rectr', type=float, default=0.5, help='lambda for control between gan loss and L1 loss')
+
         self.isTrain = True

@@ -76,10 +76,12 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
         # calculate final loss scalar
         if opt.gan_type == 'wgan-gp':
-            loss_D = loss_dict['D_fake'] + loss_dict['D_real'] + opt.lambda_gp*loss_dict['D_GP']
+            loss_D = loss_dict['d_fake'] + loss_dict['d_real'] + opt.lambda_gp*loss_dict['gp']
         else:
-            loss_D = (loss_dict['D_fake'] + loss_dict['D_real']) * 0.5
-        loss_G = loss_dict['G_GAN'] + loss_dict.get('G_GAN_Feat',0) + loss_dict.get('G_VGG',0)
+            loss_D = (loss_dict['d_fake'] + loss_dict['d_real']) * 0.5
+        
+        loss_G = opt.lambda_rectr*loss_dict['g_gan'] + (1-opt.lambda_rectr)*loss_dict['rectr']
+        loss_G += loss_dict.get('g_gan_feat', 0) + loss_dict.get('g_vgg', 0)
 
         ############### Backward Pass ####################
         # update generator weights
@@ -109,9 +111,12 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
         ### display output images
         if save_fake:
-            visuals = OrderedDict([('input_label', util.tensor2label(data['label'][0], opt.label_nc)),
-                                   ('synthesized_image', util.tensor2MRI(generated.data[0], **opt.statistics)),
-                                   ('real_image', util.tensor2MRI(data['image'][0], **opt.statistics))])
+            lbl = ('input_label', util.tensor2label(data['label'][0], opt.label_nc))
+            syn_img = ('synthesized_image', util.tensor2MRI(generated.data[0], 
+                        scale=False, **opt.statistics))
+            real_img = ('real_image', util.tensor2MRI(data['image'][0], 
+                        scale=False, **opt.statistics))
+            visuals = OrderedDict([lbl, syn_img, real_img])
             visualizer.display_current_results(visuals, epoch, total_steps)
 
         ### save latest model

@@ -18,16 +18,6 @@ class Pix2PixHDModel(BaseModel):
         
         return tg_real, tg_fake
     
-    def init_loss_filter(self, use_gan_feat_loss, use_vgg_loss):
-        flags = [True, use_gan_feat_loss, use_vgg_loss, True, True, False]
-        if self.opt.gan_type == 'wgan-gp':
-            flags[-1] = True
-        
-        def loss_filter(g_gan, g_gan_feat, g_vgg, d_real, d_fake, gp):
-            tp_loss = (g_gan, g_gan_feat, g_vgg, d_real, d_fake, gp)
-            return [l for (l,f) in zip(tp_loss,flags) if f]
-        return loss_filter
-    
     def initialize(self, opt):
         BaseModel.initialize(self, opt)
         if opt.resize_or_crop != 'none' or not opt.isTrain: # when training at full res this causes OOM
@@ -83,17 +73,19 @@ class Pix2PixHDModel(BaseModel):
             self.old_lr = opt.lr
 
             # define loss functions
-            self.loss_filter = self.init_loss_filter(not opt.no_ganFeat_loss, not opt.no_vgg_loss)
+            self.loss_dict = dict(g_gan=True, g_gan_feat=True, g_vgg=False, 
+                                    rectr=True, d_real=True, d_fake=True, gp=False)
+            
             tg_real, tg_fake = self.get_target_real_fake(opt)
             self.criterionGAN = networks.GANLoss(gan_type=opt.gan_type, tensor=self.Tensor, 
                                     target_real_label=tg_real, target_fake_label=tg_fake)   
             self.criterionFeat = torch.nn.L1Loss()
+            self.criterionRecontruction = torch.nn.L1Loss()
             if not opt.no_vgg_loss:             
                 self.criterionVGG = networks.VGGLoss(self.gpu_ids)
                 
-        
             # Names so we can breakout loss
-            self.loss_names = self.loss_filter('G_GAN','G_GAN_Feat','G_VGG','D_real', 'D_fake', 'D_GP')
+            self.loss_names = [k for (k, v) in self.loss_dict.items() if v]
 
             # initialize optimizers
             # optimizer G
@@ -177,6 +169,9 @@ class Pix2PixHDModel(BaseModel):
             input_concat = input_label
         fake_image = self.netG.forward(input_concat)
 
+        # Loss reconstruction
+        loss_rectr = self.criterionRecontruction(fake_image, real_image)
+
         # Fake Detection and Loss
         pred_fake_pool = self.discriminate(input_label, fake_image, use_pool=True)
         loss_D_fake = self.criterionGAN(pred_fake_pool, False)        
@@ -211,8 +206,13 @@ class Pix2PixHDModel(BaseModel):
             lbl_real_imgs = torch.cat((input_label, real_image), dim=1)
             loss_gp = networks.gradient_penalty(self.netD, lbl_fake_imgs, lbl_real_imgs)
         
+        # dict_loss
+        dict_loss = dict(g_gan=loss_G_GAN, g_gan_feat=loss_G_GAN_Feat, g_vgg=loss_G_VGG, 
+                        rectr=loss_rectr, d_real=loss_D_real, d_fake=loss_D_fake, gp=loss_gp)
+
         # Only return the fake_B image if necessary to save BW
-        return [ self.loss_filter( loss_G_GAN, loss_G_GAN_Feat, loss_G_VGG, loss_D_real, loss_D_fake, loss_gp), None if not infer else fake_image ]
+        return [ [dict_loss[k] for (k, v) in dict_loss.items() if self.loss_dict[k]], 
+                    None if not infer else fake_image ]
 
     def inference(self, label, inst, image=None):
         # Encode Inputs        
