@@ -2,6 +2,7 @@ import time
 import os
 import numpy as np
 import torch
+import logging
 from torch.autograd import Variable
 from collections import OrderedDict
 from subprocess import call
@@ -14,6 +15,8 @@ from models.models import create_model
 import util.util as util
 from util.visualizer import Visualizer
 
+logging.basicConfig(level=logging.DEBUG, filename='saved/info.log', filemode='w',
+                    format='%(levelname)s - %(message)s')
 opt = TrainOptions().parse()
 iter_path = os.path.join(opt.checkpoints_dir, opt.name, 'iter.txt')
 if opt.continue_train:
@@ -118,6 +121,8 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
                         scale=False, **opt.statistics))
             visuals = OrderedDict([lbl, syn_img, real_img])
             visualizer.display_current_results(visuals, epoch, total_steps)
+            img_file = os.path.basename(data['path'][0])
+            logging.debug('Save image: {} at epoch {}'.format(img_file, epoch))
 
         ### save latest model
         if total_steps % opt.save_latest_freq == save_delta:

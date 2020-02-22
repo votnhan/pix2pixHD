@@ -30,9 +30,10 @@ def tensor2MRI(image_tensor, imtype=np.int32, scale=True, **statistics):
             image_numpy.append(tensor2MRI(image_tensor[i], scale, **statistics))
         return image_numpy
     image_numpy = image_tensor.cpu().float().numpy()
+    image_numpy = np.transpose(image_numpy, (1, 2, 0))
     if scale:
         range_vox = statistics['max_vox'] - statistics['min_vox']
-        image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * range_vox
+        image_numpy = (image_numpy + 1) / 2.0 * range_vox
     if image_numpy.shape[2] == 1:
         image_numpy = image_numpy[:, :, 0]
     return image_numpy.astype(imtype)
