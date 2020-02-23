@@ -51,6 +51,10 @@ class MRI_Dataset(BaseDataset):
         B_tensor = inst_tensor = feat_tensor = 0
         B_path = self.B_paths[index]
         B = Image.open(B_path)
+        img_arr = np.asarray(B)
+        mean_img = np.mean(img_arr)
+        mean_ts = torch.tensor(mean_img)
+
         tf_B_list = get_transform_image(tf_A_list, self.opt, normalize=False, **self.params)
         B_tensor = transforms.Compose(tf_B_list)(B)
 
@@ -60,7 +64,7 @@ class MRI_Dataset(BaseDataset):
             inst_tensor = tf_A(inst)
 
         input_dict = {'label': A_tensor, 'inst': inst_tensor, 'image': B_tensor, 
-                      'feat': feat_tensor, 'path': A_path}
+                      'feat': feat_tensor, 'path': A_path, 'mean': mean_ts}
 
         return input_dict
 

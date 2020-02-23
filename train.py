@@ -5,7 +5,6 @@ import torch
 import logging
 from torch.autograd import Variable
 from collections import OrderedDict
-from subprocess import call
 import fractions
 def lcm(a,b): return abs(a * b)/fractions.gcd(a,b) if a and b else 0
 
@@ -15,7 +14,7 @@ from models.models import create_model
 import util.util as util
 from util.visualizer import Visualizer
 
-logging.basicConfig(level=logging.DEBUG, filename='saved/info.log', filemode='w',
+logging.basicConfig(level=logging.INFO, filename='saved/info.log', filemode='w',
                     format='%(levelname)s - %(message)s')
 opt = TrainOptions().parse()
 iter_path = os.path.join(opt.checkpoints_dir, opt.name, 'iter.txt')
@@ -55,6 +54,8 @@ total_steps = (start_epoch-1) * dataset_size + epoch_iter
 display_delta = total_steps % opt.display_freq
 print_delta = total_steps % opt.print_freq
 save_delta = total_steps % opt.save_latest_freq
+n_samples = len(dataset)
+n_iter = n_samples // opt.batchSize
 
 for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
     epoch_start_time = time.time()
@@ -67,7 +68,8 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         epoch_iter += opt.batchSize
 
         # whether to collect output images
-        save_fake = total_steps % opt.display_freq == display_delta
+        # save_fake = total_steps % opt.display_freq == display_delta
+        save_fake = i % n_iter == 0
 
         ############## Forward Pass ######################
         losses, generated = model(Variable(data['label']), Variable(data['inst']), 
@@ -114,15 +116,16 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
         ### display output images
         if save_fake:
+            mean = data['mean']
             lbl = ('input_label', util.tensor2label(data['label'][0], opt.label_nc))
-            syn_img = ('synthesized_image', util.tensor2MRI(generated.data[0], 
+            syn_img = ('synthesized_image', util.tensor2MRI(generated.data[0]*mean.cuda(),
                         scale=False, **opt.statistics))
-            real_img = ('real_image', util.tensor2MRI(data['image'][0], 
+            real_img = ('real_image', util.tensor2MRI(data['image'][0]*mean,
                         scale=False, **opt.statistics))
             visuals = OrderedDict([lbl, syn_img, real_img])
             visualizer.display_current_results(visuals, epoch, total_steps)
             img_file = os.path.basename(data['path'][0])
-            logging.debug('Save image: {} at epoch {}'.format(img_file, epoch))
+            logging.info('Save image: {} at epoch {}'.format(img_file, epoch))
 
         ### save latest model
         if total_steps % opt.save_latest_freq == save_delta:
